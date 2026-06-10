@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Task Claw</title>
+
+<style>
+body{
+    margin:0;
+    background:#8ed6ff;
+    text-align:center;
+    font-family:sans-serif;
+}
+
+canvas{
+    background:white;
+    border:4px solid black;
+    margin-top:20px;
+}
+
+#ui{
+    margin:10px;
+}
+
+input{
+    width:300px;
+    padding:8px;
+}
+</style>
+</head>
+<body>
+
+<h1>🧸 Task Claw Machine</h1>
+
+<div id="ui">
+    <input id="taskInput" placeholder="Add a task">
+    <button onclick="addTask()">Add Task</button>
+    <button onclick="dropClaw()">DROP CLAW</button>
+</div>
+
+<canvas id="game" width="800" height="500"></canvas>
+
+<script>
+
+const canvas = document.getElementById("game");
+const ctx = canvas.getContext("2d");
+
+let clawX = 400;
+let clawY = 50;
+
+let grabbing = false;
+
+const prizes = [];
+
+function addTask(){
+
+    const input = document.getElementById("taskInput");
+
+    if(!input.value.trim()) return;
+
+    prizes.push({
+        x:Math.random()*700+50,
+        y:Math.random()*200+250,
+        size:40,
+        task:input.value,
+        grabbed:false
+    });
+
+    input.value="";
+}
+
+document.addEventListener("keydown",e=>{
+
+    if(grabbing) return;
+
+    if(e.key==="ArrowLeft")
+        clawX-=25;
+
+    if(e.key==="ArrowRight")
+        clawX+=25;
+
+});
+
+function dropClaw(){
+
+    if(grabbing || prizes.length===0) return;
+
+    grabbing=true;
+
+    let target=null;
+    let bestDistance=999999;
+
+    for(const p of prizes){
+
+        const d=Math.abs(p.x-clawX);
+
+        if(d<bestDistance){
+            bestDistance=d;
+            target=p;
+        }
+    }
+
+    const interval=setInterval(()=>{
+
+        clawY+=10;
+
+        if(clawY>350){
+
+            clearInterval(interval);
+
+            if(target){
+
+                const success=Math.random()<0.95;
+
+                if(success){
+
+                    alert(
+                        "🎉 TASK UNLOCKED:\n\n"+
+                        target.task
+                    );
+
+                    prizes.splice(
+                        prizes.indexOf(target),
+                        1
+                    );
+                }
+            }
+
+            const up=setInterval(()=>{
+
+                clawY-=10;
+
+                if(clawY<=50){
+
+                    clawY=50;
+                    grabbing=false;
+                    clearInterval(up);
+                }
+
+            },16);
+        }
+
+    },16);
+}
+
+function draw(){
+
+    ctx.clearRect(0,0,800,500);
+
+    ctx.fillStyle="black";
+
+    ctx.fillRect(clawX-2,0,4,clawY);
+
+    ctx.font="40px serif";
+    ctx.fillText("🦾",clawX-20,clawY+20);
+
+    for(const p of prizes){
+
+        ctx.font="40px serif";
+        ctx.fillText("🧸",p.x,p.y);
+    }
+
+    requestAnimationFrame(draw);
+}
+
+draw();
+
+</script>
+
+</body>
+</html>
