@@ -75,16 +75,37 @@ function addTask(){
 
     if(!input.value.trim()) return;
 
-    prizes.push({
-        x:Math.random()*700+50,
-        y:Math.random()*200+250,
-        size:40,
-        task:input.value,
-        grabbed:false
-    });
+prizes.push({
+    x: Math.random()*700 + 50,
+    y: Math.random()*200 + 250,
+    size: 40,
+    task: input.value,
+    animal: stuffedAnimals[
+        Math.floor(Math.random() * stuffedAnimals.length)
+    ],
+    grabbed: false
+});
 
     input.value="";
 }
+
+document.getElementById("taskInput").addEventListener("keydown", function(e) {
+    if (e.key === "Enter") {
+        addTask();
+    }
+});
+
+document.addEventListener("keydown", e => {
+
+    if(grabbing) return;
+
+    if(e.key==="ArrowLeft")
+        clawX-=25;
+
+    if(e.key==="ArrowRight")
+        clawX+=25;
+
+});
 
 document.addEventListener("keydown",e=>{
 
@@ -104,18 +125,18 @@ function dropClaw(){
 
     grabbing=true;
 
-    let target=null;
-    let bestDistance=999999;
+	let target = null;
+	const grabRange = 30; // pixels
 
-    for(const p of prizes){
+	for (const p of prizes) {
 
-        const d=Math.abs(p.x-clawX);
+		const distance = Math.abs(p.x - clawX);
 
-        if(d<bestDistance){
-            bestDistance=d;
-            target=p;
-        }
-    }
+		if (distance < grabRange) {
+			target = p;
+			break;
+		}
+	}
 
     const interval=setInterval(()=>{
 
@@ -125,23 +146,23 @@ function dropClaw(){
 
             clearInterval(interval);
 
-            if(target){
+            if (target) {
 
-                const success=Math.random()<0.95;
+				alert(
+					"🎉 TASK UNLOCKED:\n\n" +
+					target.task
+			);
 
-                if(success){
+		prizes.splice(
+			prizes.indexOf(target),
+			1
+    );
 
-                    alert(
-                        "🎉 TASK UNLOCKED:\n\n"+
-                        target.task
-                    );
+} else {
 
-                    prizes.splice(
-                        prizes.indexOf(target),
-                        1
-                    );
-                }
-            }
+    alert("❌ Missed! No animal was under the claw.");
+
+}
 
             const up=setInterval(()=>{
 
@@ -159,6 +180,41 @@ function dropClaw(){
 
     },16);
 }
+function drawClaw(x, y) {
+
+    ctx.strokeStyle = "#444";
+    ctx.lineWidth = 4;
+
+    // center connector
+    ctx.beginPath();
+    ctx.moveTo(x, y);
+    ctx.lineTo(x, y + 20);
+    ctx.stroke();
+
+    // left claw arm
+    ctx.beginPath();
+    ctx.moveTo(x, y + 20);
+    ctx.lineTo(x - 15, y + 35);
+    ctx.lineTo(x - 25, y + 25);
+    ctx.stroke();
+
+    // center claw arm
+    ctx.beginPath();
+    ctx.moveTo(x, y + 20);
+    ctx.lineTo(x, y + 40);
+    ctx.stroke();
+
+    // right claw arm
+    ctx.beginPath();
+    ctx.moveTo(x, y + 20);
+    ctx.lineTo(x + 15, y + 35);
+    ctx.lineTo(x + 25, y + 25);
+    ctx.stroke();
+
+    // top housing
+    ctx.fillStyle = "#888";
+    ctx.fillRect(x - 12, y - 10, 24, 10);
+}
 
 function draw(){
 
@@ -168,14 +224,13 @@ function draw(){
 
     ctx.fillRect(clawX-2,0,4,clawY);
 
-    ctx.font="40px serif";
-    ctx.fillText("🦾",clawX-20,clawY+20);
+	drawClaw(clawX, clawY);
 
-    for(const p of prizes){
+for(const p of prizes){
 
-        ctx.font="40px serif";
-        ctx.fillText("🧸",p.x,p.y);
-    }
+    ctx.font = "40px serif";
+    ctx.fillText(p.animal, p.x, p.y);
+}
 
     requestAnimationFrame(draw);
 }
