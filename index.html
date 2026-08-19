@@ -56,6 +56,9 @@ const ctx = canvas.getContext("2d");
 let clawX = 400;
 let clawY = 50;
 
+const clawHalfWidth = 25;
+const clawStep = 25;
+
 let grabbing = false;
 
 const prizes = [];
@@ -104,27 +107,20 @@ document.getElementById("taskInput").addEventListener("keydown", function(e) {
 });
 
 document.addEventListener("keydown", e => {
+    if (grabbing || !["ArrowLeft", "ArrowRight", "ArrowDown"].includes(e.key)) {
+        return;
+    }
 
-    if(grabbing) return;
+    // Keep arrow keys from scrolling the page while controlling the claw.
+    e.preventDefault();
 
-    if(e.key==="ArrowLeft")
-        clawX-=25;
-
-    if(e.key==="ArrowRight")
-        clawX+=25;
-
-});
-
-document.addEventListener("keydown",e=>{
-
-    if(grabbing) return;
-
-    if(e.key==="ArrowLeft")
-        clawX-=25;
-
-    if(e.key==="ArrowRight")
-        clawX+=25;
-
+    if (e.key === "ArrowLeft") {
+        clawX = Math.max(clawHalfWidth, clawX - clawStep);
+    } else if (e.key === "ArrowRight") {
+        clawX = Math.min(canvas.width - clawHalfWidth, clawX + clawStep);
+    } else if (e.key === "ArrowDown") {
+        dropClaw();
+    }
 });
 
 function dropClaw(){
