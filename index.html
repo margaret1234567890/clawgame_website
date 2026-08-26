@@ -44,6 +44,7 @@ input{
     <input id="taskInput" placeholder="Add a task">
     <button onclick="addTask()">Add Task</button>
     <button onclick="dropClaw()">DROP CLAW</button>
+    <button onclick="clearScreen()">Clear Screen</button>
 </div>
 
 <canvas id="game" width="800" height="500"></canvas>
@@ -61,7 +62,8 @@ const clawStep = 25;
 
 let grabbing = false;
 
-const prizes = [];
+const storageKey = "taskClawPrizes";
+const prizes = loadPrizes();
 const stuffedAnimals = [
     "🧸", // teddy bear
     "🐰", // bunny
@@ -80,6 +82,26 @@ const stuffedAnimals = [
     "🦄"  // unicorn
 ];
 
+function loadPrizes() {
+    try {
+        const savedPrizes = JSON.parse(localStorage.getItem(storageKey));
+        return Array.isArray(savedPrizes) ? savedPrizes : [];
+    } catch (error) {
+        return [];
+    }
+}
+
+function savePrizes() {
+    localStorage.setItem(storageKey, JSON.stringify(prizes));
+}
+
+function clearScreen() {
+    if (grabbing) return;
+
+    prizes.length = 0;
+    savePrizes();
+}
+
 function addTask(){
 
     const input = document.getElementById("taskInput");
@@ -97,6 +119,7 @@ prizes.push({
     grabbed: false
 });
 
+    savePrizes();
     input.value="";
 }
 
@@ -165,6 +188,7 @@ function dropClaw(){
 			prizes.indexOf(target),
 			1
     );
+		savePrizes();
 
 } else {
 
