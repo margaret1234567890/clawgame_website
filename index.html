@@ -7,7 +7,13 @@
 <style>
 body{
     margin:0;
-    background:#8ed6ff;
+    min-height:100vh;
+    background-color:#8ed6ff;
+    background-image:url("background.jpg");
+    background-position:center;
+    background-repeat:no-repeat;
+    background-size:cover;
+    background-attachment:fixed;
     text-align:center;
     font-family:sans-serif;
 }
@@ -61,6 +67,9 @@ const clawHalfWidth = 25;
 const clawStep = 25;
 
 let grabbing = false;
+let clawGrip = 0;
+let grabbedPrize = null;
+let audioContext = null;
 
 const storageKey = "taskClawPrizes";
 const prizes = loadPrizes();
@@ -93,6 +102,52 @@ function loadPrizes() {
 
 function savePrizes() {
     localStorage.setItem(storageKey, JSON.stringify(prizes));
+}
+
+function getAudioContext() {
+    if (!audioContext) {
+        const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+        if (!AudioContextClass) return null;
+        audioContext = new AudioContextClass();
+    }
+
+    return audioContext;
+}
+
+function playTone(startFrequency, endFrequency, duration, type, volume, delay = 0) {
+    const sound = getAudioContext();
+    if (!sound) return;
+
+    const startTime = sound.currentTime + delay;
+    const oscillator = sound.createOscillator();
+    const gain = sound.createGain();
+
+    oscillator.type = type;
+    oscillator.frequency.setValueAtTime(startFrequency, startTime);
+    oscillator.frequency.exponentialRampToValueAtTime(endFrequency, startTime + duration);
+
+    gain.gain.setValueAtTime(0.0001, startTime);
+    gain.gain.exponentialRampToValueAtTime(volume, startTime + 0.015);
+    gain.gain.exponentialRampToValueAtTime(0.0001, startTime + duration);
+
+    oscillator.connect(gain);
+    gain.connect(sound.destination);
+    oscillator.start(startTime);
+    oscillator.stop(startTime + duration);
+}
+
+function playGrabSound() {
+    // A quick toy squeak followed by several short metallic clinks.
+    playTone(550, 1200, 0.2, "sine", 0.22);
+    playTone(1800, 900, 0.12, "triangle", 0.12, 0.12);
+    playTone(2400, 1300, 0.1, "square", 0.06, 0.15);
+    playTone(1400, 700, 0.14, "triangle", 0.1, 0.22);
+}
+
+function playMissSound() {
+    // Two low pulses make a recognizable failure buzzer.
+    playTone(180, 130, 0.28, "sawtooth", 0.16);
+    playTone(160, 110, 0.32, "sawtooth", 0.16, 0.32);
 }
 
 function clearScreen() {
@@ -146,11 +201,14 @@ document.addEventListener("keydown", e => {
     }
 });
 
-function dropClaw(){
+function dropClaw() {
+    if (grabbing || prizes.length === 0) return;
 
-    if(grabbing || prizes.length===0) return;
+    grabbing = true;
 
-    grabbing=true;
+    // Initialize audio during the key press or button click so browsers allow it.
+    const sound = getAudioContext();
+    if (sound && sound.state === "suspended") sound.resume();
 
 	let target = null;
 	const clawLeft = clawX - clawHalfWidth;
@@ -169,48 +227,60 @@ function dropClaw(){
 		}
 	}
 
-    const interval=setInterval(()=>{
+    const down = setInterval(() => {
+        clawY += 10;
 
-        clawY+=10;
+        if (clawY >= 350) {
+            clawY = 350;
+            clearInterval(down);
 
-        if(clawY>350){
+            const close = setInterval(() => {
+                clawGrip = Math.min(1, clawGrip + 0.1);
 
-            clearInterval(interval);
+                if (clawGrip === 1) {
+                    clearInterval(close);
+                    grabbedPrize = target;
 
-            if (target) {
+                    if (target) {
+                        playGrabSound();
+                    } else {
+                        playMissSound();
+                    }
 
-				alert(
-					"🎉 TASK UNLOCKED:\n\n" +
-					target.task
-			);
+                    const up = setInterval(() => {
+                        clawY -= 10;
 
-		prizes.splice(
-			prizes.indexOf(target),
-			1
-    );
-		savePrizes();
+                        if (clawY <= 50) {
+                            clawY = 50;
+                            clearInterval(up);
 
-} else {
+                            if (target) {
+                                prizes.splice(prizes.indexOf(target), 1);
+                                savePrizes();
+                            }
 
-    alert("❌ Missed! No animal was under the claw.");
+                            grabbedPrize = null;
 
-}
+                            const open = setInterval(() => {
+                                clawGrip = Math.max(0, clawGrip - 0.1);
 
-            const up=setInterval(()=>{
+                                if (clawGrip === 0) {
+                                    clearInterval(open);
+                                    grabbing = false;
 
-                clawY-=10;
-
-                if(clawY<=50){
-
-                    clawY=50;
-                    grabbing=false;
-                    clearInterval(up);
+                                    if (target) {
+                                        alert("🎉 TASK UNLOCKED:\n\n" + target.task);
+                                    } else {
+                                        alert("❌ Missed! No animal was under the claw.");
+                                    }
+                                }
+                            }, 16);
+                        }
+                    }, 16);
                 }
-
-            },16);
+            }, 16);
         }
-
-    },16);
+    }, 16);
 }
 function drawClaw(x, y) {
 
@@ -223,11 +293,14 @@ function drawClaw(x, y) {
     ctx.lineTo(x, y + 20);
     ctx.stroke();
 
+    const elbowOffset = 15 - clawGrip * 8;
+    const tipOffset = 25 - clawGrip * 20;
+
     // left claw arm
     ctx.beginPath();
     ctx.moveTo(x, y + 20);
-    ctx.lineTo(x - 15, y + 35);
-    ctx.lineTo(x - 25, y + 25);
+    ctx.lineTo(x - elbowOffset, y + 35);
+    ctx.lineTo(x - tipOffset, y + 25);
     ctx.stroke();
 
     // center claw arm
@@ -239,8 +312,8 @@ function drawClaw(x, y) {
     // right claw arm
     ctx.beginPath();
     ctx.moveTo(x, y + 20);
-    ctx.lineTo(x + 15, y + 35);
-    ctx.lineTo(x + 25, y + 25);
+    ctx.lineTo(x + elbowOffset, y + 35);
+    ctx.lineTo(x + tipOffset, y + 25);
     ctx.stroke();
 
     // top housing
@@ -260,8 +333,16 @@ function draw(){
 
 for(const p of prizes){
 
+    if (p === grabbedPrize) continue;
+
     ctx.font = "40px serif";
     ctx.fillText(p.animal, p.x, p.y);
+}
+
+if (grabbedPrize) {
+    ctx.font = "40px serif";
+    const animalWidth = ctx.measureText(grabbedPrize.animal).width;
+    ctx.fillText(grabbedPrize.animal, clawX - animalWidth / 2, clawY + 70);
 }
 
     requestAnimationFrame(draw);
