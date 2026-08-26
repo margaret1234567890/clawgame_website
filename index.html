@@ -130,13 +130,17 @@ function dropClaw(){
     grabbing=true;
 
 	let target = null;
-	const grabRange = 30; // pixels
+	const clawLeft = clawX - clawHalfWidth;
+	const clawRight = clawX + clawHalfWidth;
+	ctx.font = "40px serif";
 
 	for (const p of prizes) {
+		// p.x is the animal's left edge because fillText uses left alignment.
+		// Compare the visible bounds instead of treating p.x as its center.
+		const animalLeft = p.x;
+		const animalRight = p.x + ctx.measureText(p.animal).width;
 
-		const distance = Math.abs(p.x - clawX);
-
-		if (distance < grabRange) {
+		if (clawRight >= animalLeft && clawLeft <= animalRight) {
 			target = p;
 			break;
 		}
